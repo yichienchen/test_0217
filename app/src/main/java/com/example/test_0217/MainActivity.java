@@ -5,72 +5,69 @@ import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.AdvertiseCallback;
-import android.bluetooth.le.AdvertiseData;
-import android.bluetooth.le.AdvertiseSettings;
-import android.bluetooth.le.AdvertisingSet;
 import android.bluetooth.le.AdvertisingSetCallback;
-import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.PeriodicAdvertisingParameters;
-import android.bluetooth.le.ScanFilter;
-import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.telephony.TelephonyManager;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-
-import static android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_POWER;
-import static com.example.test_0217.advertiser.buildAdvertiseData;
-import static com.example.test_0217.advertiser.buildAdvertiseData_extended;
-import static com.example.test_0217.advertiser.buildAdvertiseData_periodicData;
-import static com.example.test_0217.advertiser.buildAdvertiseData_scan_response;
-import static com.example.test_0217.advertiser.buildAdvertiseSettings;
-import static com.example.test_0217.advertiser.buildAdvertisingSetParameters;
-import static com.example.test_0217.advertiser.buildperiodicParameters;
-import static com.example.test_0217.advertiser.data_seg;
-import static com.example.test_0217.function.byte2HexStr;
-import static com.example.test_0217.scanner.leScanCallback;
-
 /*
-scanner(只包含scan 4.0) 和 advertiser(4.0 or 5.0)
+BLE_Scanner(只包含scan 4.0) 和 BLE_Adv(4.0 or 5.0)
  */
 
 public class MainActivity extends AppCompatActivity {
-    static int ManufacturerData_size = 24;  //ManufacturerData長度
+    static int ManufacturerData_size = 24 - 3;  //ManufacturerData長度
     static String TAG = "chien";
+    static long contant_time_limit = 15;
+    static int num_of_id;
 
-    static String Data = "CHENYICHIENCHENYI123456sdbjfksdfjsbvjkabksdafs";
-    boolean version = true;  //true: 4.0 , false:5.0
+    //static String Data_adv = "CHENYICHIENCHENYI123456sdbjfksdfjsbvjkabksdafs";
+    static String Data_adv;
+    static boolean version = true;  //true: 4.0 , false:5.0
     static byte[][] adv_seg_packet;
     static int x;
-    static byte[] id_byte = new byte[] {0x22,0x6c,0x74,0x52,0x04a,0x5f,0x2d};
+    static byte[] id_byte = new byte[]{0x22, 0x6c, 0x74, 0x52, 0x04a, 0x5f, 0x2d};
     static int pdu_size;  //純data，不包含id跟manufacturer specific data的flags及第幾個packet
 
 
     static List<String> list_device = new ArrayList<>();
     static List<String> list_device_detail = new ArrayList<>();
 
+
     static ArrayList<ArrayList<Object>> matrix = new ArrayList<>();
     static ArrayList<Integer> num_total = new ArrayList<>();
     static ArrayList<Long> time_previous = new ArrayList<>();
     static ArrayList<Long> mean_total = new ArrayList<>();
+
+    static ArrayList<String> contact_time_imei = new ArrayList<>();
+    static ArrayList<Calendar> contact_time_first = new ArrayList<>();
+    static ArrayList<Calendar> contact_time_last = new ArrayList<>();
+
 
     static Map<Integer, AdvertiseCallback> AdvertiseCallbacks_map;
     static Map<Integer, AdvertisingSetCallback> extendedAdvertiseCallbacks_map;
@@ -83,12 +80,34 @@ public class MainActivity extends AppCompatActivity {
     static AdvertiseCallback mAdvertiseCallback;
     static BluetoothLeAdvertiser mBluetoothLeAdvertiser;
 
-    Button startScanningButton;
-    Button stopScanningButton;
-    Button scan_list;
-    Button startAdvButton;
-    Button stopAdvButton;
+    static Button startScanningButton;
+    static Button stopScanningButton;
+    static Button scan_list;
+    static Button startAdvButton;
+    static Button stopAdvButton;
     static TextView peripheralTextView;
+    static TextView sql_Text;
+
+    private Receiver_BLE mBLEReceiver;
+    private Receiver_contact_history mcontact_history_ReceiverContacthistory;
+
+    static NotificationManager notificationManager;
+    static NotificationChannel mChannel;
+    Intent intentMainActivity;
+    static PendingIntent pendingIntent;
+    Notification notification;
+    static IntentFilter filter2;
+    static Intent received_id;
+
+    Intent adv_service;
+    Intent scan_service;
+    Intent OKHTTP;
+    static ArrayList<String> infected_id = new ArrayList<>();
+
+    public static String mDeviceIMEI = "0";
+    TelephonyManager mTelephonyManager = null;
+
+    public static DBHelper DH=null;
 
 
     @Override
@@ -97,81 +116,51 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         initialize();
         permission();
+        element();
+        notice();
 
-        startScanningButton = findViewById(R.id.StartScanButton);
-        startScanningButton.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                startScanning();
-            }
-        });
 
-        stopScanningButton = findViewById(R.id.StopScanButton);
-        stopScanningButton.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                stopScanning();
-            }
-        });
-        stopScanningButton.setVisibility(View.INVISIBLE);
+        DH = new DBHelper(this,"MYDB",null,2);
 
-        scan_list = findViewById(R.id.scan_list);
-        scan_list.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (v.getId()==R.id.scan_list){
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("device list")
-                            .setItems(list_device.toArray(new String[0]) , new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    String list = list_device_detail.get(which);
-                                    //Log.d("which",String.valueOf(which));
-                                    Toast.makeText(getApplicationContext(), list , Toast.LENGTH_SHORT).show();
-                                }
-                            })
-                            .setPositiveButton("close", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
 
-                                }
-                            })
-                            .show();
-                }
-            }
+        Log.e(TAG,"filter1: "+ Service_OKHttp.ACCESSIBILITY_SERVICE);
+        getDeviceImei();
+        startService(OKHTTP);
 
-        });
 
-        startAdvButton = findViewById(R.id.StartAdvButton);
-        startAdvButton.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                startAdvertising();
-            }
-        });
+        Log.e(TAG,"mDeviceIMEI: "+mDeviceIMEI);
+        Data_adv = mDeviceIMEI;
 
-        stopAdvButton = findViewById(R.id.StopAdvButton);
-        stopAdvButton.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                stopAdvertising();
-            }
-        });
-        stopAdvButton.setVisibility(View.INVISIBLE);
+        //Log.e(TAG,"filter2: "+ Service_OKHttp.ACCESSIBILITY_SERVICE );
+        filter2 = new IntentFilter();
 
-        peripheralTextView = findViewById(R.id.PeripheralTextView);
-        peripheralTextView.setMovementMethod(new ScrollingMovementMethod()); //垂直滾動
-
-        AdvertiseCallbacks_map = new TreeMap<>();
-        extendedAdvertiseCallbacks_map = new TreeMap<>();
+        mcontact_history_ReceiverContacthistory = new Receiver_contact_history();
+        registerReceiver(mcontact_history_ReceiverContacthistory,filter2);
     }
 
     @Override
     public void onDestroy() {
+        notificationManager.notify(1, notification);
+        unregisterReceiver(mBLEReceiver);
+        unregisterReceiver(mcontact_history_ReceiverContacthistory);
+        stopService(adv_service);
+        stopService(scan_service);
+        stopService(OKHTTP);
+
         super.onDestroy();
-        Log.e(TAG,"onDestroy() called");
-        stopAdvertising();
-        stopScanning();
+        Log.e(TAG, "onDestroy() called");
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        //Log.e(TAG, "onResume() called");
+        permission();
     }
 
     private void initialize() {
         if (mBluetoothLeScanner == null) {
-            mBluetoothManager = (BluetoothManager)getSystemService(Context.BLUETOOTH_SERVICE);
+            mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             if (mBluetoothManager != null) {
                 BluetoothAdapter bluetoothAdapter = mBluetoothManager.getAdapter();
                 if (bluetoothAdapter != null) {
@@ -191,175 +180,8 @@ public class MainActivity extends AppCompatActivity {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     }
 
-    public void startScanning() {
-        Log.e(TAG,"start scanning");
-
-        list_device.clear();
-        list_device_detail.clear();
-
-        num_total.clear();
-        time_previous.clear();
-        mean_total.clear();
-        matrix.clear();
-
-        long zero=0;
-        for (int j=0;j<100;j++){  //100 : mac address數量上限
-            num_total.add(1);
-            time_previous.add(zero);
-            mean_total.add(zero);
-        }
-
-        //add six row
-        matrix.add(new ArrayList<>());
-        matrix.add(new ArrayList<>());
-        matrix.add(new ArrayList<>());
-        matrix.add(new ArrayList<>());
-        matrix.add(new ArrayList<>());
-        matrix.add(new ArrayList<>());
-        matrix.add(new ArrayList<>());
-
-        peripheralTextView.setText("");
-        startScanningButton.setVisibility(View.INVISIBLE);
-        stopScanningButton.setVisibility(View.VISIBLE);
-
-        StringBuilder data = new StringBuilder("0");
-        for(int j=data.length();(j+id_byte.length)%ManufacturerData_size!=0;j++){
-            data.append("0");
-        }
-
-        byte[] data_all = new byte[id_byte.length + data.toString().getBytes().length];
-        System.arraycopy(id_byte, 0, data_all, 1, id_byte.length);
-        System.arraycopy(data.toString().getBytes(), 0, data_all, id_byte.length, data.toString().getBytes().length);
-        // ManufacturerData : packet編號(1) + id(4) + data(19)
-
-        byte[] data_mask = new byte[] {0x00,0x11,0x11,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-        Log.e(TAG,"data_all: "+ byte2HexStr(data_all)+"\n"
-                +"data_mask: "+byte2HexStr(data_mask));
-        ScanFilter UUID_Filter_M = new ScanFilter.Builder().setManufacturerData(0xffff,data_all,data_mask).build();
-        ArrayList<ScanFilter> filters = new ArrayList<>();
-        filters.add(UUID_Filter_M);
-
-
-        ScanSettings settings = new ScanSettings.Builder()
-                .setScanMode(SCAN_MODE_LOW_POWER)
-//                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-//                .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)  //Fails to start power optimized scan as this feature is not supported
-                .build();
-//        btScanner.flushPendingScanResults(leScanCallback);
-        mBluetoothLeScanner.startScan(filters, settings, leScanCallback);
-    }
-
-    public void stopScanning() {
-        Log.e(TAG,"stopping scanning");
-        peripheralTextView.append("Stopped Scanning");
-        startScanningButton.setVisibility(View.VISIBLE);
-        stopScanningButton.setVisibility(View.INVISIBLE);
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                mBluetoothLeScanner.stopScan(leScanCallback);
-            }
-        });
-    }
-
-    public void startAdvertising(){
-        Log.e(TAG, "Service: Starting Advertising");
-        if (!version) {
-            pdu_size = 255-3-4-1-id_byte.length;
-            adv_seg_packet=data_seg(255);
-        }else {
-            pdu_size = 31-3-4-1-id_byte.length;
-            adv_seg_packet = data_seg(31);
-        }
-        x=(Data.length()/pdu_size)+1;
-        if (mAdvertiseCallback == null) {
-            if (mBluetoothLeAdvertiser != null) {
-                for (int q=1;q<x;q++){
-                    startBroadcast(q);
-                }
-            }
-        }
-        startAdvButton.setVisibility(View.INVISIBLE);
-        stopAdvButton.setVisibility(View.VISIBLE);
-    }
-
-    public void stopAdvertising(){
-        if (mBluetoothLeAdvertiser != null) {
-            for (int q=1;q<x;q++){
-                stopBroadcast(q);
-            }
-            mAdvertiseCallback = null;
-        }
-        stopAdvButton.setVisibility(View.INVISIBLE);
-        startAdvButton.setVisibility(View.VISIBLE);
-    }
-
-    private void startBroadcast(Integer order) {
-        String localName =  String.valueOf(order) ;
-        BluetoothAdapter.getDefaultAdapter().setName(localName);
-
-        //BLE4.0
-        if (version) {
-            AdvertiseSettings settings = buildAdvertiseSettings();
-            AdvertiseData advertiseData = buildAdvertiseData(order);
-            AdvertiseData scanResponse = buildAdvertiseData_scan_response(order);
-            mBluetoothLeAdvertiser.startAdvertising(settings, advertiseData, new advertiser.MyAdvertiseCallback(order));  //包含 scan response  BLE4.0
-        } else {
-            //BLE 5.0
-            AdvertiseData advertiseData_extended = buildAdvertiseData_extended();
-            AdvertiseData periodicData = buildAdvertiseData_periodicData();
-            AdvertisingSetParameters parameters = buildAdvertisingSetParameters();
-            PeriodicAdvertisingParameters periodicParameters = buildperiodicParameters();
-            mBluetoothLeAdvertiser.startAdvertisingSet(parameters,advertiseData_extended,null,
-                    null,null,0,0,new advertiser.ExtendedAdvertiseCallback(order));
-        }
-
-    }
-
-    private void stopBroadcast(Integer order) {
-        final AdvertiseCallback adCallback = AdvertiseCallbacks_map.get(order);
-        final AdvertisingSetCallback exadCallback = extendedAdvertiseCallbacks_map.get(order);
-        if (!version) {
-            //BLE 5.0
-            if (exadCallback != null) {
-                try {
-                    if (mBluetoothLeAdvertiser != null) {
-                        mBluetoothLeAdvertiser.stopAdvertisingSet(exadCallback);
-                    }
-                    else {
-                        Log.w(TAG,"Not able to stop broadcast; mBtAdvertiser is null");
-                    }
-                }
-                catch(RuntimeException e) { // Can happen if BT adapter is not in ON state
-                    Log.w(TAG,"Not able to stop broadcast; BT state: {}");
-                }
-                AdvertiseCallbacks_map.remove(order);
-            }
-            //Log.e(TAG,order +" Advertising successfully stopped.");
-        }else {
-            //BLE 4.0
-            if (adCallback != null) {
-                try {
-                    if (mBluetoothLeAdvertiser != null) {
-                        mBluetoothLeAdvertiser.stopAdvertising(adCallback);
-                    }
-                    else {
-                        Log.w(TAG,"Not able to stop broadcast; mBtAdvertiser is null");
-                    }
-                }
-                catch(RuntimeException e) { // Can happen if BT adapter is not in ON state
-                    Log.w(TAG,"Not able to stop broadcast; BT state: {}");
-                }
-                AdvertiseCallbacks_map.remove(order);
-            }
-            Log.e(TAG,order +" Advertising successfully stopped");
-        }
-    }
-
-
-
-    public void permission(){
-        if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+    public void permission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
         }
         if (!mBluetoothAdapter.isEnabled()) {
@@ -368,8 +190,112 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void contact_time(){
+    private void element() {
+        /*---------------------------------------scan-----------------------------------------*/
+        startScanningButton = findViewById(R.id.StartScanButton);
+        startScanningButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                startService(scan_service);
+            }
+        });
+        stopScanningButton = findViewById(R.id.StopScanButton);
+        stopScanningButton.setVisibility(View.INVISIBLE);
+        scan_list = findViewById(R.id.scan_list);
+        scan_list.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (v.getId() == R.id.scan_list) {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("device list")
+                            .setItems(list_device.toArray(new String[0]), new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    String list = list_device_detail.get(which);
+                                    //Log.d("which",String.valueOf(which));
+                                    Toast.makeText(getApplicationContext(), list, Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .setPositiveButton("close", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
 
+                                }
+                            })
+                            .show();
+                }
+            }
+        });
+
+        /*--------------------------------------advertise----------------------------------------*/
+        startAdvButton = findViewById(R.id.StartAdvButton);
+        startAdvButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                startService(adv_service);
+            }
+        });
+        stopAdvButton = findViewById(R.id.StopAdvButton);
+        stopAdvButton.setVisibility(View.INVISIBLE);
+
+        /*--------------------------------------intent----------------------------------------*/
+        adv_service = new Intent(MainActivity.this, Service_Adv.class);
+        scan_service = new Intent(MainActivity.this, Service_Scan.class);
+        OKHTTP = new Intent(MainActivity.this, Service_OKHttp.class);
+
+        /*-------------------------------------Receiver---------------------------------------*/
+        received_id = new Intent();
+
+        /*--------------------------------------others----------------------------------------*/
+        peripheralTextView = findViewById(R.id.PeripheralTextView);
+        peripheralTextView.setMovementMethod(new ScrollingMovementMethod()); //垂直滾動
+        AdvertiseCallbacks_map = new TreeMap<>();
+        extendedAdvertiseCallbacks_map = new TreeMap<>();
     }
+
+    public void notice() {
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mChannel = new NotificationChannel("MainActivity", "主畫面", NotificationManager.IMPORTANCE_HIGH);
+        intentMainActivity = new Intent(this, MainActivity.class);
+        pendingIntent = PendingIntent.getActivity(this, 0, intentMainActivity, PendingIntent.FLAG_UPDATE_CURRENT);
+        notification = new Notification.Builder(this, "MainActivity")
+                .setSmallIcon(R.drawable.ble)
+                .setContentTitle("application")
+                .setContentText("test_0217已關閉 請開啟test_0217")
+                .setWhen(System.currentTimeMillis())
+                .setContentIntent(pendingIntent)
+                .build();
+        notification.flags |= Notification.FLAG_ONGOING_EVENT;
+        mChannel.setImportance(NotificationManager.IMPORTANCE_HIGH);
+        notificationManager.createNotificationChannel(mChannel);
+        notificationManager.cancel(1);
+
+        IntentFilter filter1 = new IntentFilter(mBluetoothAdapter.ACTION_STATE_CHANGED);
+        mBLEReceiver = new Receiver_BLE();
+        registerReceiver(mBLEReceiver, filter1);
+
+        sql_Text = findViewById(R.id.sql_Text);
+    }
+
+    private void getDeviceImei() {
+        mTelephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        Log.e(TAG, "mTelephonyManager: "+mTelephonyManager.getLine1Number());
+        String IMSI = mTelephonyManager.getSubscriberId(); //getSimSerialNumber
+        String phone_number = mTelephonyManager.getLine1Number();
+        Log.e(TAG, "IMSI: "+IMSI);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) {
+                mDeviceIMEI = mTelephonyManager.getImei();
+            } else {
+                mDeviceIMEI = mTelephonyManager.getDeviceId();
+            }
+        } catch (SecurityException e) {
+            // expected
+            if (Build.VERSION.SDK_INT >= 26) {
+                Log.d(TAG, "SecurityException e");
+            }
+        }
+    }
+
+
+
+
 }
 

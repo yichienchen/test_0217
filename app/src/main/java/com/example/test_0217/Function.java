@@ -2,13 +2,12 @@ package com.example.test_0217;
 
 import android.util.Log;
 
-import static com.example.test_0217.MainActivity.Data;
 import static com.example.test_0217.MainActivity.TAG;
 import static com.example.test_0217.MainActivity.id_byte;
 import static com.example.test_0217.MainActivity.pdu_size;
 
-public class function {
-    private static String hexToAscii(String hexStr) {
+public class Function {
+    public static String hexToAscii(String hexStr) {
         StringBuilder output = new StringBuilder("");
 
         for (int i = 0; i < hexStr.length(); i += 2) {
