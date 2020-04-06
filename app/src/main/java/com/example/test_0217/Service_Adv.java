@@ -17,6 +17,7 @@ import android.view.View;
 import static com.example.test_0217.MainActivity.AdvertiseCallbacks_map;
 import static com.example.test_0217.MainActivity.Data_adv;
 import static com.example.test_0217.MainActivity.TAG;
+import static com.example.test_0217.MainActivity.adv_mode;
 import static com.example.test_0217.MainActivity.adv_seg_packet;
 import static com.example.test_0217.MainActivity.extendedAdvertiseCallbacks_map;
 import static com.example.test_0217.MainActivity.id_byte;
@@ -63,11 +64,13 @@ public class Service_Adv extends Service {
         x=(Data_adv.length()/pdu_size)+1;
         if (mAdvertiseCallback == null) {
             if (mBluetoothLeAdvertiser != null) {
-                for (int q=1;q<x;q++){
+                for (int q=1;q<x;q++){  //x
                     startBroadcast(q);
                 }
             }
         }
+
+
         startAdvButton.setVisibility(View.INVISIBLE);
         stopAdvButton.setVisibility(View.VISIBLE);
     }
@@ -79,10 +82,12 @@ public class Service_Adv extends Service {
         //BLE4.0
         if (version) {
             AdvertiseSettings settings = buildAdvertiseSettings();
-            AdvertiseData advertiseData = buildAdvertiseData(order);
+            AdvertiseData advertiseData = buildAdvertiseData(1);  //order
             //Log.e(TAG,"buildAdvertiseData: " + buildAdvertiseData(order));
             AdvertiseData scanResponse = buildAdvertiseData_scan_response(order);
-            mBluetoothLeAdvertiser.startAdvertising(settings, advertiseData, new BLE_Adv.MyAdvertiseCallback(order));  //包含 scan response  BLE4.0
+            //mBluetoothLeAdvertiser.startAdvertising(settings, advertiseData, new Service_Adv.MyAdvertiseCallback(order));  //包含 scan response  BLE4.0
+            AdvertisingSetParameters parameters = buildAdvertisingSetParameters();
+            mBluetoothLeAdvertiser.startAdvertisingSet(parameters,advertiseData,null,null,null,0,0,new Service_Adv.ExtendedAdvertiseCallback(order));
         } else {
             //BLE 5.0
             AdvertiseData advertiseData_extended = buildAdvertiseData_extended();
@@ -90,7 +95,7 @@ public class Service_Adv extends Service {
             AdvertisingSetParameters parameters = buildAdvertisingSetParameters();
             PeriodicAdvertisingParameters periodicParameters = buildperiodicParameters();
             mBluetoothLeAdvertiser.startAdvertisingSet(parameters,advertiseData_extended,null,
-                    null,null,0,0,new BLE_Adv.ExtendedAdvertiseCallback(order));
+                    null,null,0,0,new Service_Adv.ExtendedAdvertiseCallback(order));
         }
 
     }
@@ -115,8 +120,6 @@ public class Service_Adv extends Service {
                 adv_byte[pack_num][0] = intToByte(pack_num);
                 System.arraycopy(id_byte,0,adv_byte[pack_num],1,id_byte.length);
                 System.arraycopy(byte_data,coun,adv_byte[pack_num],id_byte.length+1,pdu_size);
-//                Log.e(TAG,"adv_byte: "+byte2HexStr(adv_byte[pack_num])+";  counter: "+counter + ";  length: "+adv_byte[pack_num].length);
-//                Log.e(TAG,"coco"+byte_len+" pack_num: "+pack_num);
                 pack_num++;
                 coun=coun+pdu_size;
             }else {
@@ -128,7 +131,7 @@ public class Service_Adv extends Service {
 //                Log.e(TAG,"coco"+byte_len+" pack_num: "+pack_num);
             }
         }
-        //Log.e(TAG, "pack_num = " + pack_num);
+//        Log.e(TAG, "pack_num = " + pack_num);
 //        for(int xx= 0;xx<pack_num;xx++) {
 //            Log.e(TAG, xx + " adv_byte.length  = " + adv_byte[xx].length);
 //        }
@@ -205,17 +208,27 @@ public class Service_Adv extends Service {
 
     public static AdvertiseSettings buildAdvertiseSettings() {
         AdvertiseSettings.Builder settingsBuilder = new AdvertiseSettings.Builder()
-                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
-                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_ULTRA_LOW)
+                .setAdvertiseMode(adv_mode)
+                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
                 .setConnectable(false)
                 .setTimeout(0);
         return settingsBuilder.build();
     }
 
     public static AdvertisingSetParameters buildAdvertisingSetParameters() {
+        int x;
+        if(adv_mode==0){
+            x=1600;
+        }else if(adv_mode==1){
+            x=400;
+        }else {
+            x=160;
+        }
         AdvertisingSetParameters.Builder parametersBuilder = new AdvertisingSetParameters.Builder()
                 .setConnectable(false)
-                .setInterval(AdvertisingSetParameters.INTERVAL_MEDIUM);
+                .setInterval(x)
+                .setTxPowerLevel(AdvertisingSetParameters.TX_POWER_MEDIUM)
+                .setLegacyMode(true);
         return parametersBuilder.build();
     }
 
@@ -227,8 +240,8 @@ public class Service_Adv extends Service {
 
     static AdvertiseData buildAdvertiseData(Integer order) {
         AdvertiseData.Builder dataBuilder = new AdvertiseData.Builder();
-        dataBuilder.setIncludeDeviceName(true);
-        dataBuilder.setIncludeTxPowerLevel(false);
+        dataBuilder.setIncludeDeviceName(false);
+        dataBuilder.setIncludeTxPowerLevel(true);
         dataBuilder.addManufacturerData(0xffff,adv_seg_packet[order]);
         return dataBuilder.build();
     }
@@ -243,7 +256,7 @@ public class Service_Adv extends Service {
 
     static AdvertiseData buildAdvertiseData_scan_response(Integer order) {
         AdvertiseData.Builder dataBuilder = new AdvertiseData.Builder();
-        dataBuilder.addManufacturerData(0xffff,adv_seg_packet[order]);
+        dataBuilder.addManufacturerData(0xffff,adv_seg_packet[1]);  //order
         return dataBuilder.build();
     }
 
@@ -269,7 +282,7 @@ public class Service_Adv extends Service {
     private void stopBroadcast(Integer order) {
         final AdvertiseCallback adCallback = AdvertiseCallbacks_map.get(order);
         final AdvertisingSetCallback exadCallback = extendedAdvertiseCallbacks_map.get(order);
-        if (!version) {
+        if (version) {
             //BLE 5.0
             if (exadCallback != null) {
                 try {

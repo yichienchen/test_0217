@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
 
     <application
         android:allowBackup="true"
@@ -17,34 +19,16 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <service
-            android:name=".notice_Service"
+            android:name=".Service_status_check"
             android:enabled="true"
-            android:exported="true"></service>
-        <service
-            android:name=".notice_service"
-            android:exported="false" />
-
-        <receiver
-            android:name=".Receiver_contact_history"
-            android:enabled="true"
-            android:exported="true" />
-        <receiver
-            android:name=".Contact_id_Receiver"
-            android:enabled="true"
-            android:exported="true" />
-        <receiver
-            android:name=".contant_time"
-            android:enabled="true"
-            android:exported="true" />
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE"></service>
 
         <service
-            android:name=".Service_OKHttp"
+            android:name=".Service_http"
             android:enabled="true"
-            android:exported="true" />
-        <service
-            android:name=".adv_off"
-            android:enabled="true"
-            android:exported="true" />
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <service
             android:name=".Service_Adv"
             android:enabled="true"
