@@ -8,7 +8,7 @@
     android:paddingLeft="16dp"
     android:paddingRight="16dp"
     android:paddingTop="16dp"
-    tools:context="com.example.test_0217.MainActivity">
+    tools:context="com.example.test_0217.Activity">
 
     <Button
         android:layout_width="160dp"

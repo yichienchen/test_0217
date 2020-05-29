@@ -12,18 +12,16 @@ import android.util.Log;
 import android.view.View;
 
 import java.util.Calendar;
-import java.util.Date;
 
-import static com.example.test_0217.BLE_Scanner.time_difference;
-import static com.example.test_0217.BLE_Scanner.time_difference_;
-import static com.example.test_0217.MainActivity.TAG;
-import static com.example.test_0217.MainActivity.mBluetoothAdapter;
-import static com.example.test_0217.MainActivity.startAdvButton;
-import static com.example.test_0217.MainActivity.startScanningButton;
-import static com.example.test_0217.MainActivity.stopAdvButton;
-import static com.example.test_0217.MainActivity.stopScanningButton;
-import static com.example.test_0217.MainActivity.time_bluetooth_off;
-import static com.example.test_0217.MainActivity.time_bluetooth_on;
+import static com.example.test_0217.Service_scan_function.format;
+import static com.example.test_0217.Activity.TAG;
+import static com.example.test_0217.Activity.mBluetoothAdapter;
+import static com.example.test_0217.Activity.startAdvButton;
+import static com.example.test_0217.Activity.startScanningButton;
+import static com.example.test_0217.Activity.stopAdvButton;
+import static com.example.test_0217.Activity.stopScanningButton;
+import static com.example.test_0217.Activity.time_bluetooth_off;
+import static com.example.test_0217.Activity.time_bluetooth_on;
 
 public class Receiver_BLE extends BroadcastReceiver {
 
@@ -39,9 +37,9 @@ public class Receiver_BLE extends BroadcastReceiver {
             final int state = intent.getIntExtra(mBluetoothAdapter.EXTRA_STATE, mBluetoothAdapter.ERROR);
             switch(state) {
                 case BluetoothAdapter.STATE_TURNING_OFF: //STATE_TURNING_ON
-                    Log.e(TAG,"STATE_OFF");
+//                    Log.e(TAG,"STATE_OFF");
                     time_bluetooth_off = Calendar.getInstance();
-                    Log.e(TAG,"time_bluetooth_off: "+time_bluetooth_off);
+                    Log.e(TAG,"time_bluetooth_off: "+format.format(time_bluetooth_off.getTime()));
                     NotificationChannel mChannel = new NotificationChannel("BLE" , "藍芽" , NotificationManager.IMPORTANCE_HIGH ) ;
                     Notification notification = new Notification.Builder(context,"BLE")
                             .setSmallIcon(R.drawable.ble)
@@ -59,11 +57,11 @@ public class Receiver_BLE extends BroadcastReceiver {
 
                     break;
                 case BluetoothAdapter.STATE_TURNING_ON: //STATE_TURNING_ON
-                    Log.e(TAG,"STATE_ON");
+//                    Log.e(TAG,"STATE_ON");
                     time_bluetooth_on = Calendar.getInstance();
-                    Log.e(TAG,"time_bluetooth_on: "+time_bluetooth_on);
+                    Log.e(TAG,"time_bluetooth_on: "+format.format(time_bluetooth_on.getTime()));
                     if(time_bluetooth_off!=null){
-                        Log.e(TAG,"time_bluetooth: " + time_difference_(time_bluetooth_off,time_bluetooth_on)/1000);  // 單位: 秒
+//                        Log.e(TAG,"time_bluetooth: " + time_difference_(time_bluetooth_off,time_bluetooth_on)/1000);  // 單位: 秒
                     }
                     notificationManager.cancel(0);
                     stopAdvButton.setVisibility(View.INVISIBLE);

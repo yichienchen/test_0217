@@ -11,30 +11,27 @@ import android.view.View;
 
 import java.util.ArrayList;
 
-import static android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY;
-import static android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_POWER;
-import static com.example.test_0217.BLE_Scanner.received_time;
-import static com.example.test_0217.BLE_Scanner.received_time_Calendar;
-import static com.example.test_0217.BLE_Scanner.received_time_interval;
-import static com.example.test_0217.BLE_Scanner.rssi_level_1;
-import static com.example.test_0217.BLE_Scanner.rssi_level_2;
-import static com.example.test_0217.BLE_Scanner.rssi_level_3;
-import static com.example.test_0217.MainActivity.ManufacturerData_size;
-import static com.example.test_0217.MainActivity.TAG;
-import static com.example.test_0217.MainActivity.id_byte;
-import static com.example.test_0217.MainActivity.list_device;
-import static com.example.test_0217.MainActivity.list_device_detail;
-import static com.example.test_0217.MainActivity.mBluetoothLeScanner;
-import static com.example.test_0217.MainActivity.matrix;
-import static com.example.test_0217.MainActivity.mean_total;
-import static com.example.test_0217.MainActivity.num_total;
-import static com.example.test_0217.MainActivity.peripheralTextView;
-import static com.example.test_0217.MainActivity.scan_mode;
-import static com.example.test_0217.MainActivity.startScanningButton;
-import static com.example.test_0217.MainActivity.stopScanningButton;
-import static com.example.test_0217.MainActivity.time_previous;
+import static com.example.test_0217.Activity.contact_time_imei;
+import static com.example.test_0217.Activity.time_interval;
 import static com.example.test_0217.Function.byte2HexStr;
-import static com.example.test_0217.BLE_Scanner.leScanCallback;
+import static com.example.test_0217.Service_scan_function.received_time;
+import static com.example.test_0217.Service_scan_function.received_time_Calendar;
+import static com.example.test_0217.Service_scan_function.received_time_interval;
+import static com.example.test_0217.Activity.ManufacturerData_size;
+import static com.example.test_0217.Activity.TAG;
+import static com.example.test_0217.Activity.id_byte;
+import static com.example.test_0217.Activity.list_device;
+import static com.example.test_0217.Activity.list_device_detail;
+import static com.example.test_0217.Activity.mBluetoothLeScanner;
+import static com.example.test_0217.Activity.matrix;
+import static com.example.test_0217.Activity.mean_total;
+import static com.example.test_0217.Activity.num_total;
+import static com.example.test_0217.Activity.peripheralTextView;
+import static com.example.test_0217.Activity.scan_mode;
+import static com.example.test_0217.Activity.startScanningButton;
+import static com.example.test_0217.Activity.stopScanningButton;
+import static com.example.test_0217.Activity.time_previous;
+import static com.example.test_0217.Service_scan_function.leScanCallback;
 
 public class Service_Scan extends Service {
 
@@ -75,6 +72,8 @@ public class Service_Scan extends Service {
         time_previous.clear();
         mean_total.clear();
         matrix.clear();
+        time_interval.clear();
+        contact_time_imei.clear();
 
         long zero=0;
         for (int j=0;j<100;j++){  //100 : mac address數量上限
@@ -82,6 +81,8 @@ public class Service_Scan extends Service {
             time_previous.add(zero);
             mean_total.add(zero);
         }
+
+
 
         //add six row
         matrix.add(new ArrayList<>());
@@ -116,15 +117,15 @@ public class Service_Scan extends Service {
 
 
         ScanSettings settings = new ScanSettings.Builder()
-                .setScanMode(scan_mode)
-                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-//                .setCallbackType(ScanSettings.CALLBACK_TYPE_MATCH_LOST)  //Fails to start power optimized scan as this feature is not supported
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+//                .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)  //Fails to start power optimized scan as this feature is not supported
 //                .setMatchMode()
-//                .setNumOfMatches()
+//                .setNumOfMatches(1)
 //                .setReportDelay()
                 .build();
 //        btScanner.flushPendingScanResults(leScanCallback);
         mBluetoothLeScanner.startScan(filters, settings, leScanCallback);
+
     }
 
     public void stopScanning() {

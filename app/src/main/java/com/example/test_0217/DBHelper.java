@@ -7,14 +7,14 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class DBHelper extends SQLiteOpenHelper {
     final static String TB1="MYTB1";
     final static String TB3="MYTB3";
-    final static int VS=2;
+    private final static int VS=2;
     public DBHelper(Context context, String name, SQLiteDatabase.CursorFactory factory, int version) {
-        //super(context, name, factory, version);
         super(context, name, null, VS);
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
+        //接觸史
         String SQL1 = "CREATE TABLE IF NOT EXISTS "+ TB1 +
                 "(_id INTEGER PRIMARY KEY AUTOINCREMENT , " +
                 "user_id VARCHAR(15) NOT NULL , " +
@@ -22,11 +22,17 @@ public class DBHelper extends SQLiteOpenHelper {
                 "time_last DATETIME NOT NULL , "+
                 "rssi_level_1 INTEGER NOT NULL , "+
                 "rssi_level_2 INTEGER NOT NULL , "+
-                "rssi_level_3 INTEGER NOT NULL )";
+                "rssi_level_3 INTEGER NOT NULL ," +
+                "is_contact INTEGER )";  //is_contact 0:沒接觸 ； 1:有接觸 ； 2:已回傳
 
 
+
+
+        //上線紀錄
         String SQL3 = "CREATE TABLE IF NOT EXISTS "+ TB3 +
-                "(time DATETIME PRIMARY KEY )";
+                "(_id INTEGER PRIMARY KEY AUTOINCREMENT , " +
+                "time_first DATETIME NOT NULL ," +
+                "time_last DATETIME )";
 
         db.execSQL(SQL1);
         db.execSQL(SQL3);
